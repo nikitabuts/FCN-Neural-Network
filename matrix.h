@@ -290,7 +290,7 @@ private:
         for (int i = 0; i < nRows; ++i) {
             std::vector<double> columnValues;
             for (int j = 0; j < nCols; ++j) {
-                double value = random == 0.0001 ? (double)rand()/RAND_MAX : random;
+                double value = random == 0.0001 ? (double)rand()*pow(10, 20)/(pow(10, 20)*RAND_MAX) : random;
                 columnValues.push_back(value);
             }
             this->values.push_back(columnValues);

@@ -5,7 +5,8 @@
 
 void printKeys(std::map<std::string, Matrix> ma) {
     for (auto elem:ma) {
-        std::cout << elem.first << " ";
+        std::cout << elem.first << ": ";
+        std::cout << "(" << elem.second.getRows() << "," << elem.second.getCols() << ") ";
     }
     std::cout << std::endl;
 }
@@ -65,18 +66,27 @@ public:
         //Градиентный спуск
         for (int i = 0; i < numEpochs; ++i) {
             Matrix activations = lModelForward(X);
-            std::cout << activations.getRows() << " " << activations.getCols() << std::endl;
             if (print) {
                 std::cout << "EPOCH # " << i+1 << std::endl;
+                std::cout << std::endl;
+                matrixPrint(activations.getValues());
+                std::cout << std::endl;
+                matrixPrint(labels.getValues());
+                std::cout << std::endl;
                 std::cout << "     loss(train set):" << computeLoss(activations, labels) << std::endl;
                 std::cout << std::endl;
             }
             lModelBackward(activations, labels);
-            std::cout << "------------" << std::endl;
-            printKeys(this->grads);
-            std::cout << "------------" << std::endl;
             updateParams(learningRate);
         }
+    }
+
+    std::map<std::string, Matrix> getParams() const {
+        return this->parameters;
+    }
+
+    std::map<std::string, Matrix> getCache() const {
+        return this->cache;
     }
 
 
@@ -89,7 +99,7 @@ private:
         assert(initType=="zeros"||"random"||"xavier");
         assert((!layersDims.empty()) && layersCheck(layersDims));
         for (int i = 1; i < layersDims.size(); ++i) {
-            this->parameters['W' + std::to_string(i)] = Matrix(layersDims[i], layersDims[i-1], 0.0001);
+            this->parameters['W' + std::to_string(i)] = Matrix(layersDims[i], layersDims[i-1], 0.0001).multiply(Matrix(1,1,sqrt((double)2/layersDims[i-1])), true);
             this->parameters['b' + std::to_string(i)] = Matrix(layersDims[i], 1, 0);
 
             assert((parameters['W' + std::to_string(i)].getRows() == layersDims[i])&&
@@ -134,9 +144,8 @@ private:
                                             )))).minus()).minus();
 
         linearActBackward(gradLastActivationForward,
-                          layersSize-1, "sigmoid");
-        std::cout << "layersSize:" << layersSize << std::endl;
-        for (int i = layersSize-2; i > 0; --i) {
+                          layersSize, "sigmoid");
+        for (int i = layersSize-1; i > 0; --i) {
             Matrix gradA = this->grads["dA" + std::to_string(i+1)];
             linearActBackward(gradA,
                               i, "sigmoid");
@@ -171,7 +180,6 @@ private:
         assert(gradPrevActivations.getRows()==prevActivations.getRows()&&
                gradPrevActivations.getCols()==prevActivations.getCols());
 
-        std::cout << std::endl;
         assert(gradW.getRows()==weights.getRows()&&
                gradW.getCols()==weights.getCols());
 
@@ -179,8 +187,8 @@ private:
                gradB.getCols()==biases.getCols());
 
         grads["dA" + std::to_string(counter)] = gradPrevActivations;
-        grads["dW" + std::to_string(counter+1)] = gradW;
-        grads["db" + std::to_string(counter+1)] = gradB;
+        grads["dW" + std::to_string(counter)] = gradW;
+        grads["db" + std::to_string(counter)] = gradB;
     }
 
     Matrix sigmoidBackward(Matrix gradA,
@@ -202,7 +210,6 @@ private:
                                               this->parameters["W" + std::to_string(i)],
                     this->parameters["b" + std::to_string(i)],
                     "sigmoid", i);
-            std::cout << std::endl;
         }
         Matrix lastActivation = linearActForward(activation,
                                                  this->parameters["W"+std::to_string(loopSize)],
@@ -213,13 +220,6 @@ private:
         return lastActivation.transpose();
     }
 
-    std::map<std::string, Matrix> getParams() const {
-        return this->parameters;
-    }
-
-    std::map<std::string, Matrix> getCache() const {
-        return this->cache;
-    }
 
     Matrix linearActForward(Matrix activationsPrev, Matrix weights,
                             Matrix biases, std::string activationType,
