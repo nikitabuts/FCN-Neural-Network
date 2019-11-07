@@ -22,6 +22,27 @@ bool layersCheck(const std::vector<int>& layersDims) {
     return flag;
 }
 
+
+int boolMask(const double& value, const double& threshold) {
+    assert(threshold > 0 && threshold < 1);
+    if (value >= threshold) {
+        return 1;
+    }
+    return 0;
+}
+
+double accuracy(Matrix labels, Matrix probs, const double& threshold) {
+    int sum = 0;
+    for (int i = 0; i < labels.getRows(); ++i) {
+        for (int j = 0; j < labels.getCols(); ++j) {
+            if (boolMask(probs.getValue(i, j), threshold) == labels.getValue(i, j)) {
+                ++sum;
+            }
+        }
+    }
+    return sum/(double)labels.getCols();
+}
+
 double computeLoss(Matrix lastActivation, Matrix labels) {
     const int labelsSize = labels.getCols();
     assert(labelsSize==lastActivation.getCols()&&
@@ -45,27 +66,31 @@ void mapPrint(std::map<std::string, Matrix> mapObj) {
 
 class Model {
 public:
+
     void fit(Matrix X, Matrix labels,
              const int& numEpochs,
              const std::vector<int>& layersDims,
+             const std::string& initType,
+             const std::vector<std::string>& activationType,
              const float& learningRate,
-             const bool& useBestModel,
              const bool& print,
              Matrix evalX=Matrix(), Matrix evalLabels=Matrix()) {
 
         //инициализация весов сети
         assert(X.getCols()==labels.getCols() && labels.getRows()==1);
 
-        assert((evalX.getCols()!=0 && evalX.getRows()!=0 && evalLabels.getCols()==1 && evalLabels.getRows()==evalX.getRows()) ||
+        assert((evalX.getCols()!=0 && evalX.getRows()!=0 && evalLabels.getRows()==1 && evalLabels.getCols()==evalX.getCols()) ||
                 (evalX.getCols()==evalLabels.getCols()==evalX.getRows()==evalX.getCols() &&
                  evalLabels.getCols()==0));
         assert(learningRate > 0 && numEpochs > 0);
-        init(layersDims, "random");
+        init(layersDims, initType);
         assert(X.getRows()==layersDims[0]);
+
+        this->activationType = activationType;
 
         //Градиентный спуск
         for (int i = 0; i < numEpochs; ++i) {
-            Matrix activations = lModelForward(X);
+            Matrix activations = lModelForward(X, false);
             if (print) {
                 std::cout << "EPOCH # " << i+1 << std::endl;
                 std::cout << std::endl;
@@ -73,12 +98,21 @@ public:
                 std::cout << std::endl;
                 matrixPrint(labels.getValues());
                 std::cout << std::endl;
+                std::cout << "---------------------------------" << std::endl;
                 std::cout << "     loss(train set):" << computeLoss(activations, labels) << std::endl;
+                std::cout << "     accuracy(train set):" << accuracy(labels, activations, 0.5) << std::endl;
+                std::cout << "---------------------------------" << std::endl;
+                if (evalLabels.getRows() != 0) {
+                    Matrix evalActivations = lModelForward(evalX, true);
+                    std::cout << "     loss(eval set):" << computeLoss(evalActivations, evalLabels) << std::endl;
+                    std::cout << "     accuracy(eval set):" << accuracy(evalLabels, evalActivations, 0.5) << std::endl;
+                }
                 std::cout << std::endl;
             }
             lModelBackward(activations, labels);
             updateParams(learningRate);
         }
+        this->isFit = true;
     }
 
     std::map<std::string, Matrix> getParams() const {
@@ -89,17 +123,38 @@ public:
         return this->cache;
     }
 
+    Matrix predict(Matrix xTest, Matrix labelsTest,
+                   const bool& printAccuracy) {
+        assert(this->isFit);
+        Matrix preds = lModelForward(xTest, true);
+        if (printAccuracy) {
+            std::cout << "accuracy:" << accuracy(labelsTest, preds, 0.5);
+        }
+        return preds;
+    }
+
 
 
 private:
     std::map<std::string, Matrix> parameters, cache, grads;
+    std::vector<std::string> activationType;
+    bool isFit = false;
 
     std::map<std::string, Matrix> init(const std::vector<int>& layersDims,
                                        const std::string& initType) {
-        assert(initType=="zeros"||"random"||"xavier");
+        assert(initType=="zeros"||"random"||"he");
         assert((!layersDims.empty()) && layersCheck(layersDims));
         for (int i = 1; i < layersDims.size(); ++i) {
-            this->parameters['W' + std::to_string(i)] = Matrix(layersDims[i], layersDims[i-1], 0.0001).multiply(Matrix(1,1,sqrt((double)2/layersDims[i-1])), true);
+            if (initType == "he") {
+                this->parameters['W' + std::to_string(i)] = Matrix(layersDims[i], layersDims[i-1], 0.0001).multiply(Matrix(1,1,sqrt((double)2/layersDims[i-1])), true);
+            }
+            else if (initType == "random") {
+                this->parameters['W' + std::to_string(i)] = Matrix(layersDims[i], layersDims[i-1], 0.0001);
+            }
+            else if (initType == "zeros") {
+                this->parameters['W' + std::to_string(i)] = Matrix(layersDims[i], layersDims[i-1], 0);
+            }
+
             this->parameters['b' + std::to_string(i)] = Matrix(layersDims[i], 1, 0);
 
             assert((parameters['W' + std::to_string(i)].getRows() == layersDims[i])&&
@@ -143,22 +198,33 @@ private:
                                     lastActivationForward.minus(
                                             )))).minus()).minus();
 
+
         linearActBackward(gradLastActivationForward,
-                          layersSize, "sigmoid");
+                          layersSize);
         for (int i = layersSize-1; i > 0; --i) {
             Matrix gradA = this->grads["dA" + std::to_string(i+1)];
+
             linearActBackward(gradA,
-                              i, "sigmoid");
+                              i);
         }
     }
 
-    void linearActBackward(Matrix gradA, const int& counter,
-                           std::string activationType) {
-        assert(activationType == "sigmoid");
+    void linearActBackward(Matrix gradA, const int& counter) {
+        const std::string& activationType = this->activationType[counter-1];
+
+        assert(activationType == "sigmoid" || activationType == "tanh" ||
+               activationType == "relu");
+        Matrix gradZ;
         if (activationType == "sigmoid") {
-            Matrix gradZ = sigmoidBackward(gradA, counter);
-            linearBackward(gradZ, counter);
+            gradZ = sigmoidBackward(gradA, counter);
         }
+        else if (activationType == "tanh") {
+            gradZ = tanhBackward(gradA, counter);
+        }
+        else if (activationType == "relu") {
+            gradZ = reluBackward(gradA, counter);
+        }
+        linearBackward(gradZ, counter);
     }
 
     void linearBackward(Matrix gradZ, const int& counter) {
@@ -193,14 +259,32 @@ private:
 
     Matrix sigmoidBackward(Matrix gradA,
                            const int& counter) {
-        Matrix derZ = cache["A" + std::to_string(counter)].sigmoidAct().multiply(
+        Matrix derZ = cache["A" + std::to_string(counter)].multiply(
                     (Matrix(1,1,1.0).sum(
-                         cache["A" + std::to_string(counter)].sigmoidAct().minus())), true);
+                         cache["A" + std::to_string(counter)].minus())), true);
         Matrix gradZ = gradA.multiply(derZ, true);
         return gradZ;
     }
 
-    Matrix lModelForward(Matrix X) {
+    Matrix tanhBackward(Matrix gradA,
+                           const int& counter) {
+        Matrix derZ = Matrix(1,1,1.0).sum(
+                         (cache["A" + std::to_string(counter)].multiply(
+                            cache["A" + std::to_string(counter)], true).minus()));
+        Matrix gradZ = gradA.multiply(derZ, true);
+        return gradZ;
+    }
+
+    Matrix reluBackward(Matrix gradA,
+                           const int& counter) {
+        Matrix derZ = cache["A" + std::to_string(counter)];
+        derZ.reluDer();
+        Matrix gradZ = gradA.multiply(derZ, true);
+        return gradZ;
+    }
+
+    Matrix lModelForward(Matrix X,
+                         const bool& isPredict) {
         Matrix activation = X;
         const int loopSize = this->parameters.size() / 2;
         Matrix activationPrev;
@@ -209,12 +293,12 @@ private:
             activation = linearActForward(activationPrev,
                                               this->parameters["W" + std::to_string(i)],
                     this->parameters["b" + std::to_string(i)],
-                    "sigmoid", i);
+                    i, isPredict);
         }
         Matrix lastActivation = linearActForward(activation,
                                                  this->parameters["W"+std::to_string(loopSize)],
                 this->parameters["b"+std::to_string(loopSize)],
-                "sigmoid",  loopSize).transpose();
+                loopSize, isPredict).transpose();
         assert(lastActivation.getCols()==1 &&
                lastActivation.getRows()==X.getCols());
         return lastActivation.transpose();
@@ -222,27 +306,40 @@ private:
 
 
     Matrix linearActForward(Matrix activationsPrev, Matrix weights,
-                            Matrix biases, std::string activationType,
-                            const int& counter) {
-        assert(activationType == "sigmoid");
-        if (activationType == "sigmoid") {
-            Matrix summMatrix = linearForward(activationsPrev,
-                                              weights,
-                                              biases,
-                                              counter);
-            Matrix activationsCur = summMatrix.sigmoidAct();
-            this->cache["A" + std::to_string(counter)] = activationsCur;
-            return activationsCur;
-        }
+                            Matrix biases,
+                            const int& counter,
+                            const bool& isPredict) {
+        const std::string& activationType = this->activationType[counter-1];
+        assert(activationType == "sigmoid" || activationType == "tanh" ||
+               activationType == "relu");
+        Matrix summMatrix = linearForward(activationsPrev,
+                                          weights,
+                                          biases,
+                                          counter);
+       Matrix activationsCur;
+       if (activationType == "sigmoid") {
+            activationsCur = summMatrix.sigmoidAct();
+       }
+       else if (activationType == "tanh"){
+             activationsCur = summMatrix.tanhAct();
+       }
+       else if (activationType == "relu") {
+            activationsCur = summMatrix.reluAct();
+       }
+
+       if (!isPredict) {
+           this->cache["A" + std::to_string(counter)] = activationsCur;
+           this->cache["A" + std::to_string(counter-1)] = activationsPrev;
+           this->cache["W" + std::to_string(counter)] = weights;
+           this->cache["b" + std::to_string(counter)] = biases;
+       }
+       return activationsCur;
     }
 
     Matrix linearForward(Matrix activations, Matrix weights, Matrix biases, const int& counter) {
-        Matrix preActivations = weights.multiply(activations, false);
+        Matrix preActivations = weights.multiply(activations, false).sum(biases);
         assert((preActivations.getRows() == weights.getRows())&&
                (preActivations.getCols() == activations.getCols()));
-        this->cache["A" + std::to_string(counter-1)] = activations;
-        this->cache["W" + std::to_string(counter)] = weights;
-        this->cache["b" + std::to_string(counter)] = biases;
         return preActivations;
     }
 };
