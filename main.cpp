@@ -13,18 +13,14 @@
 
 int main()
 {
-    Model net;
-    Matrix X = Matrix({{100, -21, 31, -4234, -43, -9},
-                       {200, -12, 9.323256, 6.2, 43, 1.000344},
-                       {300, -2, -4, 1, 14, 1000},
-                       {-31, 4, 5, 1, -43, 4000},
-                       {-434, 3, 5435, 4352, 434, 0},
-                       {3131, 1, 1, -3131, 0, 1},
-                       {-4324, 65678, 4535, 31, -54, 54},
-                       {32, 0, 0, 36, 90, 54},
-                       {65, -2, -1, -32, 32.3, 131.2},
-                       {0, 43.32, 32.43, -43.1, 200, 2000}});
-    Matrix labels = Matrix({{0, 0, 1, 0, 1, 1}});
+    Model net({6, 512, 1}, "he");
+    Matrix X = Matrix({{0, 0, 1, 0, 1, 1},
+                       {0, 1, 1, 0, 0, 0},
+                       {0, 1, 0, 1, 1, 0},
+                       {1, 1, 0, 0, 0, 0},
+                       {0, 0, 1, 1, 1, 1},
+                       {1, 0, 1, 1, 0, 1}});
+    Matrix labels = Matrix({{1, 1, 0, 0, 1, 1, 0, 1, 0, 0}});
     Matrix testX = Matrix({{100, 32, 0, -313, 435, 0.0000000000001},
                        {32, -32, -323, 434, 889, 434},
                        {1, -21, 2, 2, 434, -3111, 32345},
@@ -37,12 +33,10 @@ int main()
                        {346, 323, -1.112, -4.2157, 3.998, -7.5223}});
     Matrix labelsTest = Matrix({{0, 0, 1, 1, 0, 0}});
 
-    net.fit(X, labels, 1000000, {10, 300, 300, 300, 1}, "he", {"tanh", "relu", "tanh", "sigmoid"}, 0.05, true,
-            testX, labelsTest);
+    net.fit(testX.transpose(), labels, 100, {"tanh", "sigmoid"}, 0.01, true);
     std::cout << "-------------" << std::endl;
-    matrixPrint(net.predict(testX, labelsTest, false).getValues());
-    std::cout << "-------------" << std::endl;
-    matrixPrint(net.predict(testX, labelsTest, false).getValues());
+    net.predict(X, labels, false).print();
+
 
     return 0;
 }
