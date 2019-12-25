@@ -6,6 +6,9 @@
 #include <assert.h>
 #include <cmath>
 #include <fstream>
+#include <string>
+#include <sstream>
+#include <algorithm>
 
 class Matrix {
 public:
@@ -34,33 +37,43 @@ public:
 
     int getCols() const {return this->nCols;}
 
-    Matrix multiply(const Matrix& secondMatrix);
+    Matrix multiply(const Matrix& secondMatrix) const;
 
-    Matrix product(const Matrix& secondMatrix);
+    Matrix product(const Matrix& secondMatrix) const;
 
     Matrix sum(const Matrix& secondMatrix);
 
-    Matrix transpose();
+    Matrix transpose() const;
 
-    void print();
+    void print() const;
 
-    Matrix minus();
+    Matrix minus() const;
 
-    Matrix divide(const Matrix& secondMatrix);
+    Matrix divide (const Matrix& secondMatrix) const;
 
-    Matrix sumByAxis(const int& axis = NULL);
+    Matrix sumByAxis(const int& axis = NULL) const;
 
     void reluDer();
 
-    Matrix getExp();
+    Matrix getExp() const;
 
-    Matrix ln();
+    Matrix ln() const;
 
-    Matrix tanhAct();
+    Matrix tanhAct() const;
 
-    Matrix sigmoidAct();
+    Matrix sigmoidAct() const;
 
-    Matrix reluAct();
+    Matrix reluAct() const;
+
+    Matrix split(int firstColumn, int lastColumn,
+                 int firstRow, int lastRow,
+                 int step = 1);
+
+    std::vector<double> operator [] (int index) const;
+
+    void toCSV(const std::string& path) const;
+
+    void setValue(const int& row, const int& col, const double& value);
 
 
 
@@ -70,7 +83,6 @@ private:
     std::vector<std::vector<double>> values;
 
     void setValues(const int& nRows, const int& nCols, const double& random);
-    void setValue(const int& row, const int& col, const double& value);
 };
 
 #endif // MATRIX_H

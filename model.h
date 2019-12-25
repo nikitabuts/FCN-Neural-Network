@@ -6,7 +6,7 @@
 #define MODEL_H
 
 
-class Model: private Layer
+class Model: public Layer
 {
 public:
     Model(const std::vector<int>& layersDims,
@@ -21,6 +21,13 @@ public:
 
     Matrix predict(Matrix& xTest, Matrix& labelsTest,
                    const bool& printAccuracy);
+
+    double crossValScore(Matrix X, Matrix labels,
+                         const int& nSplits,
+                         const int& cv,
+                         const int& numEpochs,
+                         const std::vector<std::string>& activationType,
+                         const float& learningRate);
 
     std::map<std::string, Matrix> getParams() const {
         return this->parameters;
@@ -37,7 +44,7 @@ private:
     std::string initType;
     bool isFit = false;
 
-    std::map<std::string, Matrix> init();
+    void init();
 
     Matrix lModelForward(Matrix& X,
                          const bool& isPredict);
@@ -50,6 +57,8 @@ private:
     static bool layersCheck(const std::vector<int>& layersDims);
 
     static int boolMask(const double& value, const double& threshold);
+
+    static Matrix masking(const Matrix& matrix, const double& threshold);
 
     static double accuracy(Matrix labels, Matrix probs, const double& threshold);
 

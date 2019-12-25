@@ -1,7 +1,7 @@
 #include "layer.h"
 
 Matrix Layer::linearForward(Matrix &activations,
-                            Matrix &weights, Matrix &biases) {
+                            Matrix &weights, Matrix &biases) const {
     Matrix preActivations = weights.multiply(activations).sum(biases);
     assert((preActivations.getRows() == weights.getRows())&&
            (preActivations.getCols() == activations.getCols()));
@@ -12,7 +12,7 @@ Matrix Layer::linearActForward(Matrix &activationsPrev,
                                Matrix &weights,
                                Matrix &biases,
                                const std::string& type,
-                               const int &counter, const bool &isPredict) {
+                               const int &counter, const bool &isPredict) const {
 
     const std::string& activationType = type;
     assert(activationType == "sigmoid" || activationType == "tanh" ||
@@ -35,7 +35,7 @@ Matrix Layer::linearActForward(Matrix &activationsPrev,
 }
 
 Matrix Layer::sigmoidBackward(Matrix& gradA,
-                              Matrix& cache) {
+                              Matrix& cache) const {
     Matrix derZ = cache.product(
                 (Matrix(1,1,1.0).sum(
                      cache.minus())));
@@ -44,7 +44,7 @@ Matrix Layer::sigmoidBackward(Matrix& gradA,
 }
 
 Matrix Layer::tanhBackward(Matrix& gradA,
-                           Matrix& cache) {
+                           Matrix& cache) const {
     Matrix derZ = Matrix(1,1,1.0).sum(
                      (cache.product(
                         cache).minus()));
@@ -53,7 +53,7 @@ Matrix Layer::tanhBackward(Matrix& gradA,
 }
 
 Matrix Layer::reluBackward(Matrix& gradA,
-                           Matrix& cache) {
+                           Matrix& cache) const {
     Matrix derZ = cache;
     derZ.reluDer();
     Matrix gradZ = gradA.product(derZ);
@@ -62,7 +62,7 @@ Matrix Layer::reluBackward(Matrix& gradA,
 
 void Layer::linearBackward(Matrix& gradZ, std::map<std::string, Matrix>& grads,
                            std::map<std::string, Matrix>& cache,
-                           const int& counter) {
+                           const int& counter) const {
     Matrix prevActivations, weights, biases;
     prevActivations = cache["A" + std::to_string(counter -  1)];
     weights = cache["W" + std::to_string(counter)];
@@ -96,7 +96,7 @@ void Layer::linearBackward(Matrix& gradZ, std::map<std::string, Matrix>& grads,
 void Layer::linearActBackward(Matrix& gradA, std::map<std::string, Matrix>& cache,
                               std::map<std::string, Matrix>& grads,
                               const int& counter,
-                              const std::string& activationType) {
+                              const std::string& activationType) const {
     assert(activationType == "sigmoid" || activationType == "tanh" ||
            activationType == "relu");
     Matrix gradZ;

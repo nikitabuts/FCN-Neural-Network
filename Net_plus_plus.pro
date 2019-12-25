@@ -12,5 +12,4 @@ SOURCES += \
 HEADERS += \
     layer.h \
     matrix.h \
-    model.h \
-    model1.h
+    model.h

@@ -38,7 +38,7 @@ void Matrix::setValues(const int& nRows, const int& nCols, const double& random)
     for (int i = 0; i < nRows; ++i) {
         std::vector<double> columnValues;
         for (int j = 0; j < nCols; ++j) {
-            double value = random == 0.0001 ? (double)rand()*pow(10, 100)/(pow(10, 100)*RAND_MAX) : random;
+            double value = random == 0.0001 ? (double)rand()*pow(10, 3)/(pow(10, 3)*RAND_MAX) : random;
             columnValues.push_back(value);
         }
         this->values.push_back(columnValues);
@@ -50,7 +50,7 @@ void Matrix::setValue(const int& row, const int& col, const double& value) {
     this->values[row][col] = value;
 }
 
-Matrix Matrix::multiply(const Matrix& secondMatrix) {
+Matrix Matrix::multiply(const Matrix& secondMatrix) const {
     Matrix matrix = Matrix(this->getRows(), secondMatrix.getCols(), false);
     assert(this->getCols() == secondMatrix.getRows());
     for (int i = 0; i < this->getRows(); ++i) {
@@ -65,7 +65,7 @@ Matrix Matrix::multiply(const Matrix& secondMatrix) {
     return matrix;
 }
 
-Matrix Matrix::product (const Matrix& secondMatrix) {
+Matrix Matrix::product (const Matrix& secondMatrix) const {
     bool first, second, third, thourth, five, six;
     first = (this->nCols == secondMatrix.getCols() && (this->nRows == secondMatrix.getRows()));
     second = ((this->nCols == 1) && (this->nRows == 1));
@@ -170,7 +170,7 @@ Matrix Matrix::sum (const Matrix& secondMatrix) {
     return matrix;
 }
 
-Matrix Matrix::transpose() {
+Matrix Matrix::transpose() const {
     Matrix matrix = Matrix(this->nCols, this->nRows, false);
     for (int i = 0; i < this->nRows; i++) {
         for (int j = 0; j < this->nCols; j++) {
@@ -180,7 +180,7 @@ Matrix Matrix::transpose() {
     return matrix;
 }
 
-Matrix Matrix::minus() {
+Matrix Matrix::minus() const {
     Matrix matrix;
     matrix = Matrix(this->nRows, this->nCols, false);
     for (int i = 0; i < this->nRows; ++i) {
@@ -191,7 +191,7 @@ Matrix Matrix::minus() {
     return matrix;
 }
 
-Matrix Matrix::divide(const Matrix &secondMatrix) {
+Matrix Matrix::divide(const Matrix &secondMatrix) const {
     assert(this->getRows()==secondMatrix.getRows()&&
            this->getCols()==secondMatrix.getCols());
     Matrix matrix = Matrix(this->getRows(), this->getCols(), 0);
@@ -203,7 +203,7 @@ Matrix Matrix::divide(const Matrix &secondMatrix) {
     return matrix;
 }
 
-Matrix Matrix::sumByAxis(const int& axis) {
+Matrix Matrix::sumByAxis(const int& axis) const {
     Matrix matrix;
     assert(axis >=0 && axis <=2 || axis == NULL);
     if (axis == NULL || axis == 0) {
@@ -246,22 +246,23 @@ void Matrix::reluDer() {
             if (this->getValue(i, j) > 0) {
                 this->setValue(i, j, 1);
             } else {
-              this->setValue(i, j, 0);
+              this->setValue(i, j, 0.01);
             }
         }
     }
 }
 
-Matrix Matrix::getExp() {
+Matrix Matrix::getExp() const {
     Matrix matrix = Matrix(this->values);
     for (int i = 0; i < matrix.getRows(); ++i) {
         for (int j = 0; j < matrix.getCols(); ++j) {
             matrix.setValue(i, j, exp(matrix.getValue(i, j)));
         }
     }
+    return matrix;
 }
 
-Matrix Matrix::ln() {
+Matrix Matrix::ln() const {
     Matrix matrix = Matrix(this->values);
     for (int i = 0; i < matrix.getRows(); ++i) {
         for (int j = 0; j < matrix.getCols(); ++j) {
@@ -271,7 +272,7 @@ Matrix Matrix::ln() {
     return matrix;
 }
 
-Matrix Matrix::sigmoidAct() {
+Matrix Matrix::sigmoidAct() const {
     Matrix matrix = Matrix(this->values);
     for (int i = 0; i < matrix.getRows(); ++i) {
         for (int j = 0; j < matrix.getCols(); ++j) {
@@ -281,7 +282,7 @@ Matrix Matrix::sigmoidAct() {
     return matrix;
 }
 
-Matrix Matrix::tanhAct() {
+Matrix Matrix::tanhAct() const {
     Matrix matrix = Matrix(this->values);
     for (int i = 0; i < matrix.getRows(); ++i) {
         for (int j = 0; j < matrix.getCols(); ++j) {
@@ -291,7 +292,7 @@ Matrix Matrix::tanhAct() {
     return matrix;
 }
 
-Matrix Matrix::reluAct() {
+Matrix Matrix::reluAct() const {
     Matrix matrix = Matrix(this->values);
     for (int i = 0; i < matrix.getRows(); ++i) {
         for (int j = 0; j < matrix.getCols(); ++j) {
@@ -305,14 +306,14 @@ double Matrix::relu(const double& value) {
     if (value > 0) {
         return value;
     }
-    return 0;
+    return 0.01 * value;
 }
 
 double Matrix::sigmoid(const double& value) {
     return (1 / (1 + pow(M_E, -value)));
 }
 
-void Matrix::print() {
+void Matrix::print() const {
     for (const std::vector<double>& array: this->getValues()) {
         for (const double& values: array) {
             std::cout << values << " ";
@@ -320,3 +321,33 @@ void Matrix::print() {
         std::cout << std::endl;
     }
 }
+
+Matrix Matrix::split(int firstRow, int lastRow,
+                     int firstColumn, int lastColumn,
+                     int step) {
+    assert(0 <= firstColumn <= this->getCols());
+    assert(0 <= lastColumn <= this->getCols() && firstColumn < lastColumn);
+    assert(0 <= firstRow <= this->getRows());
+    assert(0 <= lastRow <= this->getRows() && firstRow < lastRow);
+    assert(step >= 1);
+    Matrix matrix = Matrix(lastRow - firstRow,
+                           lastColumn - firstColumn,
+                           0);
+    int rowCounter = 0;
+    for (int i = firstRow; i < lastRow; ++i) {
+        int columnCounter = 0;
+        for (int j = firstColumn; j < lastColumn; ++j) {
+            matrix.setValue(rowCounter, columnCounter, this->getValue(i, j));
+            ++columnCounter;
+        }
+        ++rowCounter;
+    }
+    return matrix;
+}
+
+std::vector<double> Matrix::operator[](int index) const{
+    return this->values[index];
+}
+
+
+

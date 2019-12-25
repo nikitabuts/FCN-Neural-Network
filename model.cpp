@@ -7,7 +7,7 @@ Model::Model(const std::vector<int>& layersDims,
     init();
 }
 
-std::map<std::string, Matrix> Model::init() {
+void Model::init() {
     assert(initType=="zeros"||"random"||"he");
     assert((!layersDims.empty()) && layersCheck(layersDims));
     for (int i = 1; i < this->layersDims.size(); ++i) {
@@ -28,7 +28,6 @@ std::map<std::string, Matrix> Model::init() {
         assert((parameters['b' + std::to_string(i)].getRows() == this->layersDims[i])&&
                 (parameters['b' + std::to_string(i)].getCols()) == 1);
     }
-    return this->parameters;
 }
 
 Matrix Model::lModelForward(Matrix& X,
@@ -137,6 +136,16 @@ int Model::boolMask(const double& value, const double& threshold) {
     return 0;
 }
 
+Matrix Model::masking(const Matrix &matrix, const double &threshold) {
+    Matrix matr = Matrix(matrix.getRows(), matrix.getCols(), 0);
+    for (int i = 0; i < matrix.getRows(); ++i) {
+        for (int j = 0; j < matrix.getCols(); ++j) {
+            matr.setValue(i, j, boolMask(matrix.getValue(i, j), threshold));
+        }
+    }
+    return matr;
+}
+
 double Model::accuracy(Matrix labels, Matrix probs, const double& threshold) {
     int sum = 0;
     for (int i = 0; i < labels.getRows(); ++i) {
@@ -214,5 +223,15 @@ Matrix Model::predict(Matrix& xTest, Matrix& labelsTest,
     if (printAccuracy) {
         std::cout << "accuracy:" << accuracy(labelsTest, preds, 0.5);
     }
-    return preds;
+    return masking(preds, 0.5);
+}
+
+double Model::crossValScore(Matrix X, Matrix labels, const int& nSplits,
+                            const int& cv,
+                            const int& numEpochs, const std::vector<std::string> &activationType,
+                            const float &learningRate) {
+    int baseValue = 0;
+    for (int i = 0; i < cv; ++i) {
+       // Matrix trainX, testX = X.split(baseValue, , X.getCols(), X.getCols()), X.split();
+    }
 }
