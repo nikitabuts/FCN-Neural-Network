@@ -1,2 +1,2 @@
 # FCN-Neural-Network
-Project contains implementation of Dense & Convolutional networks, using C++ programming language.
+Project contains implementation of Dense network, using C++ programming language.
